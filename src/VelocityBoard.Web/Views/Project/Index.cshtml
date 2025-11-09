@@ -1,0 +1,140 @@
+﻿@{
+    ViewData["Title"] = "Projects";
+}
+
+<h2>Projects</h2>
+
+<button id="btnAdd" class="btn btn-success mb-2">Add Project</button>
+
+<table class="table table-bordered" id="projectTable">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<!-- Modal for Add/Edit -->
+<div class="modal fade" id="projectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Project</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="projectId" />
+                <div class="mb-3">
+                    <label>Name</label>
+                    <input type="text" id="projectName" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label>Description</label>
+                    <textarea id="projectDescription" class="form-control"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveProject" class="btn btn-primary">Save</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(function () {
+
+            loadProjects();
+
+            // Load projects
+            function loadProjects() {
+                $.get('/Project/GetProjects', function (data) {
+                    var rows = '';
+                    data.forEach(p => {
+                        rows += `<tr>
+                                    <td>${p.id}</td>
+                                    <td>${p.name}</td>
+                                    <td>${p.description}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary edit" data-id="${p.id}" data-name="${p.name}" data-desc="${p.description}">Edit</button>
+                                        <button class="btn btn-sm btn-danger delete" data-id="${p.id}">Delete</button>
+                                    </td>
+                                </tr>`;
+                    });
+                    $('#projectTable tbody').html(rows);
+                });
+            }
+
+            // Add project button
+            $('#btnAdd').click(function () {
+                $('#projectId').val('');
+                $('#projectName').val('');
+                $('#projectDescription').val('');
+                $('#projectModal').modal('show');
+            });
+
+            // Save project
+            $('#saveProject').click(function () {
+                var project = {
+                    Id: $('#projectId').val(),
+                    Name: $('#projectName').val(),
+                    Description: $('#projectDescription').val()
+                };
+
+                if (!project.Id) {
+                    // Create
+                    $.ajax({
+                        url: '/Project/CreateProject',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(project),
+                        success: function () {
+                            $('#projectModal').modal('hide');
+                            loadProjects();
+                        }
+                    });
+                } else {
+                    // Update
+                    $.ajax({
+                        url: '/Project/UpdateProject',
+                        type: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify(project),
+                        success: function () {
+                            $('#projectModal').modal('hide');
+                            loadProjects();
+                        }
+                    });
+                }
+            });
+
+            // Edit button
+            $(document).on('click', '.edit', function () {
+                $('#projectId').val($(this).data('id'));
+                $('#projectName').val($(this).data('name'));
+                $('#projectDescription').val($(this).data('desc'));
+                $('#projectModal').modal('show');
+            });
+
+            // Delete button
+            $(document).on('click', '.delete', function () {
+                if (confirm('Are you sure?')) {
+                    var id = $(this).data('id');
+                    $.ajax({
+                        url: '/Project/DeleteProject/' + id,
+                        type: 'DELETE',
+                        success: function () {
+                            loadProjects();
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+}
