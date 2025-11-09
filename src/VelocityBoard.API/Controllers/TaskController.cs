@@ -40,6 +40,27 @@ namespace VelocityBoard.API.Controllers
             }
         }
 
+
+        [HttpGet("ProjectWiseTask/{id}")]
+        public async Task<IActionResult> GetProjectTasks(int id)
+        {
+            try
+            {
+                var tasks = await _context.Tasks
+                    .Where(t => t.ProjectId == id)   
+                    .Include(t => t.Project)
+                    .ToListAsync();
+
+                var tasksDto = _mapper.Map<List<TaskDto>>(tasks);
+                return Ok(tasksDto);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error: {ex.Message}");
+            }
+        }
+
+
         [HttpPost]
         public async Task<IActionResult> CreateTask(CreateTaskDto dto)
         {

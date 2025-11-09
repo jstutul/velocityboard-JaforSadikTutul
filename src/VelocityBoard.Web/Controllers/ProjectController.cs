@@ -1,17 +1,23 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using VelocityBoard.Web.Models;
 using VelocityBoard.Web.Services;
+using static VelocityBoard.Web.Controllers.AccountController;
 
 namespace VelocityBoard.Web.Controllers
 {
     public class ProjectController : Controller
     {
         private readonly ApiService _apiService;
+        private readonly IConfiguration _configuration;
+        string apiBaseUrl = null;
 
-        public ProjectController(ApiService apiService)
+        public ProjectController(ApiService apiService, IConfiguration configuration)
         {
             _apiService = apiService;
+            _configuration = configuration;
+            apiBaseUrl = _configuration.GetValue<string>("ApiSettings:BaseUrl");
         }
+
 
         public IActionResult Index()
         {
@@ -22,14 +28,13 @@ namespace VelocityBoard.Web.Controllers
             return View();
         }
 
-        //// API endpoints for AJAX
-        //[HttpGet]
-        //public async Task<IActionResult> GetProjects()
-        //{
-        //    var token = HttpContext.Session.GetString("JWToken");
-        //    var projects = await _apiService.GetAsync<List<ProjectViewModel>>("https://localhost:7212/api/Project", token);
-        //    return Json(projects);
-        //}
+        [HttpGet]
+        public async Task<IActionResult> GetProjects()
+        {
+            var url = apiBaseUrl + "Project";
+            var response = await _apiService.GetAsync<List<ProjectViewModel>>(url, new{});
+            return Json(response);
+        }
 
         //[HttpPost]
         //public async Task<IActionResult> CreateProject([FromBody] ProjectDto project)

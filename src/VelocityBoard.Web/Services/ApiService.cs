@@ -15,7 +15,7 @@ namespace VelocityBoard.Web.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public async Task<T> GetAsync<T>(string url)
+        public async Task<T> GetAsync<T>(string url, object data)
         {
             var token = _httpContextAccessor.HttpContext.Session.GetString("JWToken");
             if (!string.IsNullOrEmpty(token))
@@ -24,14 +24,28 @@ namespace VelocityBoard.Web.Services
             var response = await _httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<T>(json)!;
+            return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
         }
 
         public async Task<T?> PostAsync<T>(string url, object data)
         {
+            _httpClient.DefaultRequestHeaders.Clear();
             var token = _httpContextAccessor.HttpContext.Session.GetString("JWToken");
             if (!string.IsNullOrEmpty(token))
+            {
                 _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+            _httpClient.DefaultRequestHeaders.Accept.Add(
+                new MediaTypeWithQualityHeaderValue("application/json"));
+
+            var jsonData = JsonSerializer.Serialize(data, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
 
             var content = new StringContent(JsonSerializer.Serialize(data), Encoding.UTF8, "application/json");
             var response = await _httpClient.PostAsync(url, content);
@@ -45,5 +59,32 @@ namespace VelocityBoard.Web.Services
                 PropertyNameCaseInsensitive = true
             });
         }
+
+        public async Task<T?> PutAsync<T>(string url, object data)
+        {
+            _httpClient.DefaultRequestHeaders.Clear();
+            var token = _httpContextAccessor.HttpContext.Session.GetString("JWToken");
+            if (!string.IsNullOrEmpty(token))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+
+            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            var jsonData = JsonSerializer.Serialize(data, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+
+            var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+            var response = await _httpClient.PutAsync(url, content);
+            if (!response.IsSuccessStatusCode)
+                return default; 
+            var json = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<T>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+
     }
 }

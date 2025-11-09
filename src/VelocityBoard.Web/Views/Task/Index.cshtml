@@ -1,0 +1,259 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "_Layout";
+}
+<div class="row">
+    <h2>Project List</h2>
+    <div class="col-md-12 mb-3">
+        <div class="accordion" id="projects-container">
+            
+        </div>
+    </div>
+</div>
+
+<!-- Task Modal -->
+<div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="taskForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="taskModalLabel">Add/Edit Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="taskId" />
+                    <input type="hidden" id="projectId" />
+                    <div class="mb-3">
+                        <label for="taskTitle" class="form-label">Title</label>
+                        <input type="text" id="taskTitle" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskTitle" class="form-label">Description</label>
+                        <input type="text" id="taskDescription" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskAssignee" class="form-label">Assigned To</label>
+                        <select id="taskAssignee" class="form-select">
+
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskDueDate" class="form-label">Due Date</label>
+                        <input type="date" id="taskDueDate" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="taskStatus" class="form-label">Status</label>
+                        <select id="taskStatus" class="form-control">
+                            <option value="0">Todo</option>
+                            <option value="1">In Progress</option>
+                            <option value="2">Done</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save Task</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+    <script>
+        var usersList={};
+        function getUsername(id){
+             const user = usersList.find(u => u.id === id);
+            return user ? user.userName : null;
+        }
+        function getStatusText(status) {
+            switch(status) {
+                case 0: return "Todo";
+                case 1: return "In Progress";
+                case 2: return "Done";
+                default: return "";
+            }
+        }
+        function loadUsers() {
+            $.ajax({
+                url: '@Url.Action("GetUserList", "Task")',
+                type: 'GET',
+                success: function(users) {
+                    usersList=users
+                    var select = $('#taskAssignee');
+                    select.empty();
+                    select.append('<option value="">Select a user</option>');
+                    users.forEach(function(user) {
+                        select.append('<option value="' + user.id + '">' + user.userName + '</option>');
+                    });
+                },
+                error: function() {
+                    alert('Failed to load users');
+                }
+            });
+        }
+
+        function openAddTaskModal(projectId, task=null) {
+            $('#projectId').val(projectId);
+
+            if(task) {
+                $('#taskId').val(task.id);
+                $('#taskTitle').val(task.title);
+                $('#taskDescription').val(task.description);
+                $('#taskAssignedUser').val(task.assignedUserId);
+                $('#taskStatus').val(task.status);
+                $('#taskModalLabel').text('Edit Task');
+            } else {
+                $('#taskForm')[0].reset();
+                $('#taskId').val(0);
+                $('#taskModalLabel').text('Add Task');
+            }
+
+            // Populate users dropdown
+            $('#taskAssignedUser').empty().append('<option value="">Select User</option>');
+            usersList.forEach(u => {
+                $('#taskAssignedUser').append(`<option value="${u.id}">${u.userName}</option>`);
+            });
+
+            $('#taskModal').modal('show');
+        }
+        $(document).on("submit","#taskForm",function(e){
+            e.preventDefault();
+            saveTask();
+        })
+        function saveTask() {
+            var taskData = {
+                Id: $('#taskId').val(),
+                ProjectId: $('#projectId').val(),
+                Title: $('#taskTitle').val(),
+                Description: $('#taskDescription').val(),
+                AssignedToUserId: $('#taskAssignee').val(),
+                DueDate: $('#taskDueDate').val(),
+                Status: $('#taskStatus').val()
+            };
+             $("#loader").show();
+             var url='@Url.Action("SaveTask", "Task")';
+             if($('#taskId').val()!="0"){
+                 url='@Url.Action("UpdateTask", "Task")';
+             }
+            $.ajax({
+                url: url,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(taskData),
+                success: function(response) {
+                     $("#loader").hide();
+                    if(response) {
+                        $('#taskModal').modal('hide');
+                        loadTasks(response.projectId); // reload task list
+                    } else {
+                        alert('Error: ' + response.message);
+                    }
+                },
+                error: function() {
+                    alert('Failed to save task.');
+                }
+            });
+        }
+
+
+        function loadTasks(projectId) {
+                var tbody = $('.task-list[data-projectid="'+projectId+'"] tbody');
+                $.ajax({
+                    url: '@Url.Action("GetTasks", "Task")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ProjectId:projectId}),
+                    success: function (tasks) {
+                        tbody.empty();
+                        tasks.forEach(task => {
+                            tbody.append(`<tr>
+                                <td>${task.title}</td>
+                                <td>${getUsername(task.assignedToUserId) || ''}</td>
+                                <td>${task.dueDate || ''}</td>
+                                <td>${task.status}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary editTaskBtn"  data-task='${JSON.stringify(task)}'>Edit</button>
+                                </td>
+                            </tr>`);
+                        });
+                    },
+                    error: function () {
+                        list.html('<p class="text-danger">Failed to load tasks.</p>');
+                    }
+                });
+            }
+
+        function getProjects(){
+            $.ajax({
+                url: '@Url.Action("GetProjects", "Project")',
+                type: 'GET',
+                success: function (projects) {
+                    var container = $('#projects-container');
+                    if (projects.length === 0) {
+                        container.append('<p>No projects found.</p>');
+                        return;
+                    }
+                    projects.forEach(function (project, index) {
+                        var projectHtml = `
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}" aria-expanded="false" aria-controls="collapse${index}">
+                                    ${project.name}
+                                </button>
+                            </h2>
+                            <div id="collapse${index}" class="accordion-collapse collapse" data-bs-parent="#projects-container">
+                                <div class="accordion-body">
+                                     <button class="btn btn-sm btn-success mb-2" onclick="openAddTaskModal(${project.id})">Add Task</button>
+                                        <table class="table table-bordered table-striped task-list" data-projectid="${project.id}">
+                                            <thead>
+                                                <tr>
+                                                    <th>Title</th>
+                                                    <th>Assigned To</th>
+                                                    <th>Due Date</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <!-- Tasks loaded by AJAX -->
+                                            </tbody>
+                                        </table>
+                                </div>
+                            </div>
+                        </div>`;
+                        container.append(projectHtml);
+                    });
+                },
+                error: function () {
+                    $('#projects-container').html('<p class="text-danger">Failed to load projects.</p>');
+                }
+            });
+        }
+        $(document).on('click', '.editTaskBtn', function() {
+            var task = $(this).data('task');
+            $('#taskId').val(task.id);
+            $('#projectId').val(task.projectId);
+            $('#taskAssignee').val(task.assignedToUserId);
+            $('#taskTitle').val(task.title);
+            $('#taskDescription').val(task.description);
+            $('#taskDueDate').val(task.dueDate?.split('T')[0]); // date format yyyy-MM-dd
+            $('#taskModal').modal('show');
+        });
+        $(document).ready(function () {
+            getProjects();
+            loadUsers();
+
+            $(document).on('show.bs.collapse', '.accordion-collapse', function() {
+                var projectId = $(this).find('.task-list').data('projectid');
+                loadTasks(projectId);
+            });
+
+            
+
+            
+        });
+
+    </script>
+}

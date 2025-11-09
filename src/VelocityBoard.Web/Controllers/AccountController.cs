@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using VelocityBoard.Web.Models;
 using VelocityBoard.Web.Services;
 
 namespace VelocityBoard.Web.Controllers
@@ -23,11 +24,12 @@ namespace VelocityBoard.Web.Controllers
 
 
         [HttpPost]
-        public async Task<IActionResult> Login(string email, string password)
+        public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
             try
             {
-                var loginData = new { email, password };
+                if (model == null) return BadRequest("No data received");
+                var loginData = new { model.Email, model.Password };
 
                 var url = apiBaseUrl + "Auth/login";
                 var response = await _apiService.PostAsync<LoginResponse>(url, loginData);
@@ -35,7 +37,7 @@ namespace VelocityBoard.Web.Controllers
                 if (response != null && !string.IsNullOrEmpty(response.Token))
                 {
                     HttpContext.Session.SetString("JWToken", response.Token);
-                    return RedirectToAction("Index", "Project");
+                    return Ok(response);
                 }
 
                 ViewBag.Error = "Invalid login";
