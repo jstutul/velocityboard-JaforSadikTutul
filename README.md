@@ -34,7 +34,9 @@
 -Bootstrap 5
 -jQuery & AJAX
 
-
+##Login default
+admin
+1234
 
 
 
